@@ -1,0 +1,844 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vending Machine di 2000Nexuss</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome per Icone -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Font Google Digital/Moderna -->
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800&family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background: radial-gradient(circle at center, #1e293b 0%, #0f172a 100%);
+            min-height: 100vh;
+        }
+        .font-digital {
+            font-family: 'Orbitron', monospace;
+        }
+        /* Effetto LED Glass Vetrina */
+        .glass-case {
+            background: linear-gradient(135deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%);
+            backdrop-filter: blur(4px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            box-shadow: inset 0 0 25px rgba(59, 130, 246, 0.15);
+        }
+        .glow-led-red {
+            box-shadow: 0 0 15px rgba(239, 68, 68, 0.6);
+        }
+        /* Animazione Spirale */
+        @keyframes rotateSpiral {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(720deg); }
+        }
+        .anim-spiral {
+            animation: rotateSpiral 1.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        /* Caduta Prodotto */
+        @keyframes dropItem {
+            0% { transform: translateY(0) scale(1); opacity: 1; }
+            70% { transform: translateY(180px) scale(0.9); opacity: 1; }
+            85% { transform: translateY(160px) scale(0.85); opacity: 1; }
+            100% { transform: translateY(200px) scale(0.8); opacity: 0; }
+        }
+        .anim-drop {
+            animation: dropItem 1.2s ease-in forwards;
+        }
+        /* Vano Ritiro Apribile */
+        .flap-door {
+            transition: transform 0.4s ease;
+            transform-origin: top;
+        }
+        .flap-door.open {
+            transform: rotateX(-65deg);
+        }
+        /* Personalizzazione Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0f172a;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body class="text-slate-100 flex flex-col min-h-screen justify-between p-2 md:p-6">
+
+    <!-- Navbar/Header -->
+    <header class="max-w-7xl w-full mx-auto flex items-center justify-between py-3 px-4 bg-slate-900/80 backdrop-blur rounded-2xl border border-slate-800 shadow-lg mb-4">
+        <div class="flex items-center space-x-3">
+            <div class="p-2.5 bg-blue-600 rounded-xl shadow-lg shadow-blue-500/30">
+                <i class="fa-solid fa-cube text-xl text-white"></i>
+            </div>
+            <div>
+                <h1 class="text-lg md:text-xl font-bold bg-gradient-to-r from-blue-400 to-indigo-300 bg-clip-text text-transparent">
+                    TechVend 2000Nexuss
+                </h1>
+                <p class="text-xs text-slate-400">Distributore Automatico</p>
+            </div>
+        </div>
+        
+        <!-- Toggle Audio & Reset -->
+        <div class="flex items-center space-x-2">
+            <button id="audio-toggle-btn" onclick="toggleAudio()" class="p-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl transition border border-slate-700 text-sm flex items-center gap-2">
+                <i id="audio-icon" class="fa-solid fa-volume-high text-blue-400"></i>
+                <span class="hidden sm:inline text-xs font-semibold">Audio ON</span>
+            </button>
+            <button onclick="resetMachine()" class="p-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl transition border border-slate-700 text-sm flex items-center gap-2" title="Ricarica Stock e Azzera">
+                <i class="fa-solid fa-rotate-right text-emerald-400"></i>
+                <span class="hidden sm:inline text-xs font-semibold">Reset</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Contenitore Principale Vending Machine & Portafoglio -->
+    <main class="max-w-7xl w-full mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6 items-start my-auto">
+
+        <!-- VENDING MACHINE (8 Colonne su desktop) -->
+        <div class="lg:col-span-8 bg-slate-900 border-4 border-slate-800 rounded-3xl p-3 md:p-5 shadow-2xl relative overflow-hidden flex flex-col justify-between">
+            
+            <!-- Neon Top Accent -->
+            <div class="h-1.5 w-full bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 rounded-full mb-4 shadow-lg shadow-blue-500/50"></div>
+
+            <div class="grid grid-cols-1 md:grid-cols-12 gap-4">
+                
+                <!-- VETRINA PRODOTTI (8 colonne - 20 prodotti su 5 scaffali) -->
+                <div class="md:col-span-8 glass-case rounded-2xl p-2.5 md:p-3 relative min-h-[560px] flex flex-col justify-between overflow-hidden">
+                    
+                    <!-- Lampada UV LED interna superiori -->
+                    <div class="absolute top-0 left-0 right-0 h-2 bg-blue-400/30 blur-sm"></div>
+
+                    <!-- Griglia Prodotti 4x5 -->
+                    <div id="products-grid" class="grid grid-cols-4 gap-2 relative z-10">
+                        <!-- Generato via JS -->
+                    </div>
+
+                    <!-- Luce LED Fondo Vetrina -->
+                    <div class="mt-3 pt-2 border-t border-slate-800/80 flex justify-between items-center text-[10px] text-slate-400 uppercase tracking-widest font-semibold">
+                        <span class="flex items-center gap-1"><i class="fa-solid fa-temperature-arrow-down text-blue-400"></i> Temp: 3°C</span>
+                        <span class="flex items-center gap-1"><i class="fa-solid fa-shield-halved text-emerald-400"></i> UV Purificato</span>
+                    </div>
+                </div>
+
+                <!-- PANNELLO DI CONTROLLO & INTERFACCIA (4 colonne) -->
+                <div class="md:col-span-4 bg-slate-950 rounded-2xl p-4 border border-slate-800 flex flex-col justify-between space-y-4 shadow-inner">
+                    
+                    <!-- DISPLAY LED STATE -->
+                    <div class="bg-black/90 p-3 rounded-xl border border-slate-800 font-digital text-center space-y-1 shadow-inner relative overflow-hidden">
+                        <!-- Reflex effetto vetro -->
+                        <div class="absolute -top-10 -right-10 w-20 h-20 bg-white/5 rounded-full blur-md"></div>
+                        
+                        <div class="text-[10px] text-slate-500 tracking-widest uppercase">Stato Distributore</div>
+                        
+                        <!-- Schermo Display -->
+                        <div id="led-display-msg" class="text-xs md:text-sm text-emerald-400 min-h-[2.25rem] flex items-center justify-center font-bold tracking-wide transition-all leading-tight">
+                            INSERISCI CREDITO
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-2 pt-2 border-t border-slate-800/80 text-left">
+                            <div>
+                                <div class="text-[9px] text-slate-400 uppercase">Credito</div>
+                                <div id="led-credit" class="text-base font-bold text-amber-400">€0.00</div>
+                            </div>
+                            <div>
+                                <div class="text-[9px] text-slate-400 uppercase">Codice Num</div>
+                                <div id="led-code" class="text-base font-bold text-cyan-400">--</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- SLOT INSERIMENTO DENARO -->
+                    <div class="bg-slate-900/90 p-2.5 rounded-xl border border-slate-800 space-y-2">
+                        <div class="text-[10px] text-slate-400 font-semibold uppercase tracking-wider flex justify-between items-center">
+                            <span>Ingresso Denaro</span>
+                            <i class="fa-solid fa-coins text-amber-400 text-xs"></i>
+                        </div>
+                        <div class="flex gap-2">
+                            <div class="flex-1 bg-slate-950 border border-slate-700 rounded-lg p-2 text-center flex flex-col items-center justify-center relative overflow-hidden group">
+                                <div class="w-8 h-1 bg-slate-600 rounded-full mb-1 group-hover:bg-amber-400 transition"></div>
+                                <span class="text-[9px] text-slate-400">Monete</span>
+                            </div>
+                            <div class="flex-1 bg-slate-950 border border-slate-700 rounded-lg p-2 text-center flex flex-col items-center justify-center relative overflow-hidden group">
+                                <div class="w-10 h-0.5 bg-blue-500/80 rounded-full mb-1 group-hover:bg-blue-400 transition shadow-sm shadow-blue-400"></div>
+                                <span class="text-[9px] text-slate-400">Banconote/POS</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- TASTIERINO NUMERICO (SOLO 0-9) -->
+                    <div class="space-y-2">
+                        <div class="text-[10px] text-slate-400 font-semibold uppercase tracking-wider text-center">Tastierino Numerico</div>
+                        <div class="grid grid-cols-3 gap-1.5">
+                            <button onclick="pressKey('1')" class="keypad-btn bg-slate-800 hover:bg-slate-700 active:bg-blue-600 text-slate-200 font-bold py-2 rounded-lg border border-slate-700 transition active:scale-95 text-base shadow">1</button>
+                            <button onclick="pressKey('2')" class="keypad-btn bg-slate-800 hover:bg-slate-700 active:bg-blue-600 text-slate-200 font-bold py-2 rounded-lg border border-slate-700 transition active:scale-95 text-base shadow">2</button>
+                            <button onclick="pressKey('3')" class="keypad-btn bg-slate-800 hover:bg-slate-700 active:bg-blue-600 text-slate-200 font-bold py-2 rounded-lg border border-slate-700 transition active:scale-95 text-base shadow">3</button>
+                            <button onclick="pressKey('4')" class="keypad-btn bg-slate-800 hover:bg-slate-700 active:bg-blue-600 text-slate-200 font-bold py-2 rounded-lg border border-slate-700 transition active:scale-95 text-base shadow">4</button>
+                            <button onclick="pressKey('5')" class="keypad-btn bg-slate-800 hover:bg-slate-700 active:bg-blue-600 text-slate-200 font-bold py-2 rounded-lg border border-slate-700 transition active:scale-95 text-base shadow">5</button>
+                            <button onclick="pressKey('6')" class="keypad-btn bg-slate-800 hover:bg-slate-700 active:bg-blue-600 text-slate-200 font-bold py-2 rounded-lg border border-slate-700 transition active:scale-95 text-base shadow">6</button>
+                            <button onclick="pressKey('7')" class="keypad-btn bg-slate-800 hover:bg-slate-700 active:bg-blue-600 text-slate-200 font-bold py-2 rounded-lg border border-slate-700 transition active:scale-95 text-base shadow">7</button>
+                            <button onclick="pressKey('8')" class="keypad-btn bg-slate-800 hover:bg-slate-700 active:bg-blue-600 text-slate-200 font-bold py-2 rounded-lg border border-slate-700 transition active:scale-95 text-base shadow">8</button>
+                            <button onclick="pressKey('9')" class="keypad-btn bg-slate-800 hover:bg-slate-700 active:bg-blue-600 text-slate-200 font-bold py-2 rounded-lg border border-slate-700 transition active:scale-95 text-base shadow">9</button>
+                            <button onclick="clearCode()" class="bg-amber-600/80 hover:bg-amber-500 active:bg-amber-700 text-white font-bold py-2 rounded-lg transition active:scale-95 text-sm shadow">C</button>
+                            <button onclick="pressKey('0')" class="keypad-btn bg-slate-800 hover:bg-slate-700 active:bg-blue-600 text-slate-200 font-bold py-2 rounded-lg border border-slate-700 transition active:scale-95 text-base shadow">0</button>
+                            <button onclick="confirmSelection()" class="bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-bold py-2 rounded-lg transition active:scale-95 text-sm shadow">OK</button>
+                        </div>
+                    </div>
+
+                    <!-- PULSANTE RESTO -->
+                    <button onclick="returnChange()" class="w-full bg-slate-800 hover:bg-rose-950 hover:text-rose-300 hover:border-rose-800 active:scale-98 text-slate-300 font-semibold py-2 px-3 rounded-xl border border-slate-700 text-xs transition flex items-center justify-center gap-2 shadow">
+                        <i class="fa-solid fa-hand-holding-dollar text-amber-400"></i> Richiedi Resto / Annulla
+                    </button>
+
+                </div>
+            </div>
+
+            <!-- VANO RITIRO PRODOTTO (BOTTOM DISPENSER) -->
+            <div class="mt-4 bg-slate-950 rounded-2xl border-2 border-slate-800 p-3 relative overflow-hidden shadow-inner">
+                <div class="text-[10px] text-slate-500 uppercase tracking-widest font-bold mb-1 text-center">
+                    Vano Ritiro Prodotti
+                </div>
+                
+                <!-- Porta Basculante Vano -->
+                <div id="dispenser-box" class="h-24 bg-gradient-to-b from-slate-900 to-black rounded-xl border border-slate-800 relative flex items-center justify-center cursor-pointer group" onclick="takeEjectedItem()">
+                    
+                    <!-- Portella Spingibile -->
+                    <div id="flap-door" class="flap-door absolute inset-0 bg-slate-800/90 border-t-2 border-slate-600 rounded-xl flex items-center justify-center z-20 group-hover:bg-slate-800 transition">
+                        <div class="text-center">
+                            <i class="fa-solid fa-angles-down text-slate-500 text-lg group-hover:text-blue-400 transition animate-bounce"></i>
+                            <div class="text-[10px] text-slate-400 font-medium">SPINGI E RITIRA</div>
+                        </div>
+                    </div>
+
+                    <!-- Prodotto Erogato Presente all'interno -->
+                    <div id="ejected-item-container" class="z-10 transition-all transform scale-0 opacity-0 flex flex-col items-center">
+                        <span id="ejected-item-icon" class="text-4xl filter drop-shadow-lg mb-1"></span>
+                        <span id="ejected-item-name" class="text-xs font-bold text-amber-300 bg-black/80 px-2 py-0.5 rounded-full border border-amber-500/30"></span>
+                    </div>
+
+                </div>
+            </div>
+
+        </div>
+
+        <!-- PORTAFOGLIO UTENTE & INVENTARIO (4 Colonne su desktop) -->
+        <div class="lg:col-span-4 space-y-4">
+            
+            <!-- SCHEDA PORTAFOGLIO & RICARICA -->
+            <div class="bg-slate-900/90 backdrop-blur border border-slate-800 rounded-3xl p-5 shadow-xl">
+                <div class="flex items-center justify-between mb-3 pb-3 border-b border-slate-800">
+                    <div class="flex items-center space-x-2">
+                        <i class="fa-solid fa-wallet text-amber-400 text-lg"></i>
+                        <h2 class="font-bold text-slate-200 text-base">Portafoglio Utente</h2>
+                    </div>
+                    <span id="wallet-balance" class="text-lg font-bold font-digital text-emerald-400 bg-emerald-950/60 border border-emerald-800/50 px-3 py-1 rounded-xl">
+                        €15.00
+                    </span>
+                </div>
+
+                <!-- TAGLI RAPIDI INSERIMENTO NEL DISTRIBUTORE -->
+                <p class="text-xs text-slate-400 mb-2 font-medium">1. Inserisci denaro nel distributore:</p>
+                <div class="grid grid-cols-3 gap-2 mb-4">
+                    <button onclick="insertMoney(0.50)" class="bg-slate-800 hover:bg-slate-700 active:scale-95 border border-amber-500/30 p-2 rounded-xl text-center transition">
+                        <div class="text-xs font-bold text-amber-300">€0.50</div>
+                    </button>
+                    <button onclick="insertMoney(1.00)" class="bg-slate-800 hover:bg-slate-700 active:scale-95 border border-amber-500/30 p-2 rounded-xl text-center transition">
+                        <div class="text-xs font-bold text-amber-300">€1.00</div>
+                    </button>
+                    <button onclick="insertMoney(2.00)" class="bg-slate-800 hover:bg-slate-700 active:scale-95 border border-amber-500/30 p-2 rounded-xl text-center transition">
+                        <div class="text-xs font-bold text-amber-300">€2.00</div>
+                    </button>
+                    <button onclick="insertMoney(5.00)" class="bg-slate-800 hover:bg-slate-700 active:scale-95 border border-blue-500/30 p-2 rounded-xl text-center transition col-span-3">
+                        <div class="text-xs font-bold text-blue-300">Inserisci Banconota da €5.00</div>
+                    </button>
+                </div>
+
+                <!-- SEZIONE SEPARATA: RICARICA PORTAFOGLIO (CARTA / BANCOMAT) -->
+                <div class="pt-3 border-t border-slate-800/80">
+                    <p class="text-xs text-slate-400 mb-2 font-medium flex items-center gap-1.5">
+                        <i class="fa-solid fa-credit-card text-indigo-400"></i> 2. Ricarica il tuo Portafoglio:
+                    </p>
+                    
+                    <!-- Tagli veloci di ricarica wallet -->
+                    <div class="grid grid-cols-5 gap-1.5 mb-2.5">
+                        <button onclick="rechargeWallet(1)" class="bg-indigo-950/80 hover:bg-indigo-900 border border-indigo-700/50 text-indigo-200 font-semibold py-1 rounded-lg text-xs transition">+€1</button>
+                        <button onclick="rechargeWallet(2)" class="bg-indigo-950/80 hover:bg-indigo-900 border border-indigo-700/50 text-indigo-200 font-semibold py-1 rounded-lg text-xs transition">+€2</button>
+                        <button onclick="rechargeWallet(5)" class="bg-indigo-950/80 hover:bg-indigo-900 border border-indigo-700/50 text-indigo-200 font-semibold py-1 rounded-lg text-xs transition">+€5</button>
+                        <button onclick="rechargeWallet(10)" class="bg-indigo-950/80 hover:bg-indigo-900 border border-indigo-700/50 text-indigo-200 font-semibold py-1 rounded-lg text-xs transition">+€10</button>
+                        <button onclick="rechargeWallet(20)" class="bg-indigo-950/80 hover:bg-indigo-900 border border-indigo-700/50 text-indigo-200 font-semibold py-1 rounded-lg text-xs transition">+€20</button>
+                    </div>
+
+                    <!-- Input personalizzato ricarica -->
+                    <div class="flex gap-2">
+                        <input id="custom-recharge-input" type="number" min="1" max="100" placeholder="Importo €" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-indigo-500">
+                        <button onclick="customRechargeWallet()" class="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold px-3 py-1.5 rounded-xl text-xs transition flex items-center gap-1 whitespace-nowrap">
+                            <i class="fa-solid fa-plus"></i> Ricarica
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- INVENTARIO BORSA UTENTE -->
+            <div class="bg-slate-900/90 backdrop-blur border border-slate-800 rounded-3xl p-5 shadow-xl">
+                <div class="flex items-center justify-between mb-3 pb-3 border-b border-slate-800">
+                    <div class="flex items-center space-x-2">
+                        <i class="fa-solid fa-bag-shopping text-indigo-400 text-lg"></i>
+                        <h2 class="font-bold text-slate-200 text-base">La tua Borsa</h2>
+                    </div>
+                    <span id="bag-count" class="text-xs font-bold text-slate-400 bg-slate-800 px-2.5 py-1 rounded-full">
+                        0 oggetti
+                    </span>
+                </div>
+
+                <div id="bag-container" class="min-h-[100px] max-h-[160px] overflow-y-auto space-y-2 pr-1">
+                    <div id="empty-bag-msg" class="h-24 flex flex-col items-center justify-center text-slate-500 text-xs italic">
+                        <i class="fa-solid fa-box-open text-2xl mb-1 text-slate-600"></i>
+                        Nessun prodotto acquistato
+                    </div>
+                </div>
+            </div>
+
+            <!-- LOG DELLE OPERAZIONI -->
+            <div class="bg-slate-900/90 backdrop-blur border border-slate-800 rounded-3xl p-4 shadow-xl">
+                <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                    <i class="fa-solid fa-receipt text-blue-400"></i> Registro Attività
+                </div>
+                <div id="activity-log" class="text-[11px] text-slate-400 font-mono space-y-1 max-h-[100px] overflow-y-auto">
+                    <div class="text-slate-500">> Distributore pronto all'uso.</div>
+                </div>
+            </div>
+
+        </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="max-w-7xl w-full mx-auto text-center text-xs text-slate-500 py-4 mt-4 border-t border-slate-800/60">
+        Simulatore di Vending Machine di 2000Nexuss
+    </footer>
+
+    <!-- JAVASCRIPT LOGIC -->
+    <script>
+        // --- DATABASE PRODOTTI (20 PRODOTTI - CODICI NUMERICI 01-20) ---
+        const initialProducts = [
+            // Scaffale 1 - Snack Salati
+            { id: '01', name: 'Patatine Salate', category: 'snack', price: 1.20, stock: 5, icon: '🍿' },
+            { id: '02', name: 'Popcorn Mais', category: 'snack', price: 1.10, stock: 4, icon: '🍿' },
+            { id: '03', name: 'Pretzels Salati', category: 'snack', price: 1.30, stock: 6, icon: '🥨' },
+            { id: '04', name: 'Noccioline', category: 'snack', price: 1.40, stock: 3, icon: '🥜' },
+            // Scaffale 2 - Cioccolato e Barrette
+            { id: '05', name: 'Barretta Cacao', category: 'snack', price: 1.50, stock: 5, icon: '🍫' },
+            { id: '06', name: 'Wafer Nocciola', category: 'snack', price: 1.20, stock: 4, icon: '🧇' },
+            { id: '07', name: 'Biscotti Avena', category: 'snack', price: 1.00, stock: 5, icon: '🍪' },
+            { id: '08', name: 'Croissant Cacao', category: 'snack', price: 1.30, stock: 3, icon: '🥐' },
+            // Scaffale 3 - Dolciumi vari
+            { id: '09', name: 'Caramelle Gommose', category: 'snack', price: 1.10, stock: 6, icon: '🍬' },
+            { id: '10', name: 'Muffin Mirtilli', category: 'snack', price: 1.80, stock: 3, icon: '🧁' },
+            { id: '11', name: 'Donut Glassa', category: 'snack', price: 1.60, stock: 4, icon: '🍩' },
+            { id: '12', name: 'Chewing Gum', category: 'snack', price: 0.80, stock: 8, icon: '🫐' },
+            // Scaffale 4 - Bevande Fredde
+            { id: '13', name: 'Acqua Naturale', category: 'drink', price: 0.80, stock: 6, icon: '💧' },
+            { id: '14', name: 'Acqua Frizzante', category: 'drink', price: 0.80, stock: 5, icon: '🫧' },
+            { id: '15', name: 'Cola Fizz', category: 'drink', price: 1.80, stock: 4, icon: '🥤' },
+            { id: '16', name: 'Aranciata Soda', category: 'drink', price: 1.60, stock: 4, icon: '🍊' },
+            // Scaffale 5 - Bevande Speciali ed Energy
+            { id: '17', name: 'Tè al Limone', category: 'drink', price: 1.50, stock: 5, icon: '🧃' },
+            { id: '18', name: 'Tè alla Pesca', category: 'drink', price: 1.50, stock: 5, icon: '🍑' },
+            { id: '19', name: 'Energy Drink', category: 'drink', price: 2.20, stock: 3, icon: '⚡' },
+            { id: '20', name: 'Succo Ace', category: 'drink', price: 1.40, stock: 4, icon: '🧃' }
+        ];
+
+        let products = JSON.parse(JSON.stringify(initialProducts));
+
+        // --- STATO APPLICAZIONE ---
+        let currentCredit = 0.00;
+        let walletBalance = 15.00;
+        let typedCode = "";
+        let isDispensing = false;
+        let pendingItem = null;
+        let userBag = [];
+        let audioEnabled = true;
+
+        // --- WEB AUDIO API (Suoni Sintetizzati) ---
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        let audioCtx = null;
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new AudioContext();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        function playSound(type) {
+            if (!audioEnabled) return;
+            initAudio();
+            if (!audioCtx) return;
+
+            const now = audioCtx.currentTime;
+
+            if (type === 'beep') {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(800, now);
+                gain.gain.setValueAtTime(0.05, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(now);
+                osc.stop(now + 0.08);
+            } else if (type === 'coin') {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(1200, now);
+                osc.frequency.exponentialRampToValueAtTime(1600, now + 0.1);
+                gain.gain.setValueAtTime(0.1, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(now);
+                osc.stop(now + 0.15);
+            } else if (type === 'motor') {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(120, now);
+                osc.frequency.linearRampToValueAtTime(160, now + 1.2);
+                gain.gain.setValueAtTime(0.04, now);
+                gain.gain.linearRampToValueAtTime(0.001, now + 1.2);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(now);
+                osc.stop(now + 1.2);
+            } else if (type === 'drop') {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(150, now);
+                osc.frequency.exponentialRampToValueAtTime(40, now + 0.2);
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(now);
+                osc.stop(now + 0.25);
+            } else if (type === 'error') {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(180, now);
+                gain.gain.setValueAtTime(0.08, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(now);
+                osc.stop(now + 0.25);
+            }
+        }
+
+        function toggleAudio() {
+            audioEnabled = !audioEnabled;
+            const btn = document.getElementById('audio-toggle-btn');
+            const icon = document.getElementById('audio-icon');
+            if (audioEnabled) {
+                icon.className = 'fa-solid fa-volume-high text-blue-400';
+                btn.querySelector('span').innerText = 'Audio ON';
+            } else {
+                icon.className = 'fa-solid fa-volume-xmark text-slate-500';
+                btn.querySelector('span').innerText = 'Audio OFF';
+            }
+        }
+
+        // --- INIZIALIZZAZIONE E RENDERING ---
+        window.addEventListener('DOMContentLoaded', () => {
+            renderProducts();
+            updateUI();
+            
+            // Supporto per tastiera da PC (Esclusivamente Numerica)
+            window.addEventListener('keydown', (e) => {
+                if (e.key >= '0' && e.key <= '9') {
+                    pressKey(e.key);
+                } else if (e.key === 'Backspace' || e.key === 'Escape' || e.key.toUpperCase() === 'C') {
+                    clearCode();
+                } else if (e.key === 'Enter') {
+                    confirmSelection();
+                }
+            });
+        });
+
+        // Rendering Prodotti in Vetrina (4 per riga x 5 righe)
+        function renderProducts() {
+            const grid = document.getElementById('products-grid');
+            grid.innerHTML = '';
+
+            products.forEach(p => {
+                const card = document.createElement('div');
+                card.className = `relative bg-slate-900/80 border ${p.stock > 0 ? 'border-slate-800 hover:border-blue-500/50' : 'border-rose-900/40 opacity-60'} rounded-xl p-1.5 flex flex-col justify-between transition cursor-pointer group shadow-md`;
+                card.onclick = () => selectProductDirectly(p.id);
+
+                card.innerHTML = `
+                    <!-- Badge Codice Numerico -->
+                    <div class="flex justify-between items-center mb-0.5">
+                        <span class="bg-slate-950 text-cyan-400 text-[10px] font-bold font-digital px-1.5 py-0.5 rounded border border-cyan-500/30">
+                            ${p.id}
+                        </span>
+                        <span class="text-[9px] font-bold ${p.stock > 0 ? 'text-emerald-400' : 'text-rose-500'}">
+                            ${p.stock > 0 ? `x${p.stock}` : 'OFF'}
+                        </span>
+                    </div>
+
+                    <!-- Icona Prodotto e Spirale -->
+                    <div class="relative py-1 flex items-center justify-center overflow-hidden min-h-[46px]">
+                        <!-- Spirale Plastica -->
+                        <div id="spiral-${p.id}" class="absolute w-9 h-9 border-2 border-dashed border-slate-700 rounded-full opacity-40"></div>
+                        
+                        <!-- Icona / Emoji -->
+                        <span id="icon-${p.id}" class="text-2xl transform group-hover:scale-110 transition filter drop-shadow-md relative z-10">
+                            ${p.icon}
+                        </span>
+                    </div>
+
+                    <!-- Nome & Prezzo -->
+                    <div class="mt-0.5 pt-1 border-t border-slate-800/80 text-center">
+                        <div class="text-[10px] font-semibold text-slate-200 truncate" title="${p.name}">${p.name}</div>
+                        <div class="text-[11px] font-bold font-digital text-amber-400">€${p.price.toFixed(2)}</div>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        // --- GESTIONE TASTIERINO NUMERICO ---
+        function pressKey(digit) {
+            if (isDispensing) return;
+            playSound('beep');
+
+            if (typedCode.length < 2) {
+                typedCode += digit;
+                updateDisplay();
+
+                // Conferma automatica se inserite due cifre
+                if (typedCode.length === 2) {
+                    setTimeout(() => {
+                        confirmSelection();
+                    }, 400);
+                }
+            }
+        }
+
+        function clearCode() {
+            if (isDispensing) return;
+            playSound('beep');
+            typedCode = "";
+            updateDisplay();
+            setLedMessage("INSERISCI CREDITO", "text-emerald-400");
+        }
+
+        function selectProductDirectly(code) {
+            if (isDispensing) return;
+            typedCode = code;
+            playSound('beep');
+            updateDisplay();
+            confirmSelection();
+        }
+
+        // --- LOGICA DI ACQUISTO ED EROGAZIONE ---
+        function confirmSelection() {
+            if (isDispensing) return;
+
+            if (typedCode.length === 0) {
+                setLedMessage("DIGITA CODICE NUMERICO", "text-amber-400");
+                playSound('error');
+                return;
+            }
+
+            // Normalizza codice a 2 cifre se l'utente ha inserito ad es. "1" anziché "01"
+            let formattedCode = typedCode.padStart(2, '0');
+
+            const product = products.find(p => p.id === formattedCode);
+
+            if (!product) {
+                setLedMessage("CODICE NON VALIDO", "text-rose-400");
+                playSound('error');
+                flashDisplayError();
+                setTimeout(() => clearCode(), 1500);
+                return;
+            }
+
+            if (product.stock <= 0) {
+                setLedMessage("PRODOTTO ESAURITO", "text-rose-400");
+                playSound('error');
+                flashDisplayError();
+                setTimeout(() => clearCode(), 1500);
+                return;
+            }
+
+            if (currentCredit < product.price) {
+                const diff = (product.price - currentCredit).toFixed(2);
+                setLedMessage(`MANCANO €${diff}`, "text-amber-400");
+                playSound('error');
+                flashDisplayError();
+                return;
+            }
+
+            // Avvia Erogazione
+            executeDispense(product);
+        }
+
+        function executeDispense(product) {
+            isDispensing = true;
+            currentCredit -= product.price;
+            product.stock--;
+            
+            updateDisplay();
+            renderProducts();
+            setLedMessage("EROGAZIONE...", "text-blue-400 animate-pulse");
+            logActivity(`Acquistato ${product.name} (Cod. ${product.id}) per €${product.price.toFixed(2)}`);
+
+            // Ruota Spirale
+            const spiral = document.getElementById(`spiral-${product.id}`);
+            const itemIcon = document.getElementById(`icon-${product.id}`);
+            if (spiral) spiral.classList.add('anim-spiral');
+            if (itemIcon) itemIcon.classList.add('anim-drop');
+
+            playSound('motor');
+
+            setTimeout(() => {
+                if (spiral) spiral.classList.remove('anim-spiral');
+                if (itemIcon) itemIcon.classList.remove('anim-drop');
+
+                playSound('drop');
+                setLedMessage("PRENDI PRODOTTO", "text-emerald-400");
+
+                pendingItem = product;
+                showItemInDispenser(product);
+
+                typedCode = "";
+                updateDisplay();
+                isDispensing = false;
+
+            }, 1300);
+        }
+
+        // MOSTRA PRODOTTO NEL VANO
+        function showItemInDispenser(product) {
+            const container = document.getElementById('ejected-item-container');
+            const iconEl = document.getElementById('ejected-item-icon');
+            const nameEl = document.getElementById('ejected-item-name');
+
+            iconEl.innerText = product.icon;
+            nameEl.innerText = product.name;
+
+            container.classList.remove('scale-0', 'opacity-0');
+            container.classList.add('scale-100', 'opacity-100');
+        }
+
+        // PRENDI PRODOTTO DAL VANO
+        function takeEjectedItem() {
+            const flap = document.getElementById('flap-door');
+            
+            flap.classList.add('open');
+            setTimeout(() => flap.classList.remove('open'), 600);
+
+            if (pendingItem) {
+                playSound('beep');
+                userBag.push(pendingItem);
+                logActivity(`Ritirato ${pendingItem.name} dal vano.`);
+
+                const container = document.getElementById('ejected-item-container');
+                container.classList.remove('scale-100', 'opacity-100');
+                container.classList.add('scale-0', 'opacity-0');
+
+                pendingItem = null;
+                renderBag();
+                setLedMessage("GRAZIE! ALLA PROSSIMA", "text-emerald-400");
+
+                setTimeout(() => {
+                    if (!isDispensing && !pendingItem) {
+                        setLedMessage("INSERISCI CREDITO", "text-emerald-400");
+                    }
+                }, 2000);
+            }
+        }
+
+        // --- GESTIONE DENARO E RICARICA PORTAFOGLIO ---
+        function insertMoney(amount) {
+            if (isDispensing) return;
+
+            if (walletBalance < amount) {
+                setLedMessage("PORTAFOGLIO INSUSSIENZA", "text-rose-400");
+                playSound('error');
+                return;
+            }
+
+            walletBalance -= amount;
+            currentCredit += amount;
+            playSound('coin');
+
+            logActivity(`Inseriti €${amount.toFixed(2)} nel distributore.`);
+            updateDisplay();
+
+            if (typedCode.length === 2) {
+                confirmSelection();
+            } else {
+                setLedMessage("CREDITO AGGIORNATO", "text-emerald-400");
+            }
+        }
+
+        function rechargeWallet(amount) {
+            if (amount <= 0) return;
+            walletBalance += amount;
+            playSound('coin');
+            logActivity(`Ricaricato il portafoglio di €${amount.toFixed(2)}.`);
+            updateDisplay();
+        }
+
+        function customRechargeWallet() {
+            const input = document.getElementById('custom-recharge-input');
+            const val = parseFloat(input.value);
+
+            if (!isNaN(val) && val > 0) {
+                rechargeWallet(val);
+                input.value = '';
+            } else {
+                playSound('error');
+            }
+        }
+
+        function returnChange() {
+            if (isDispensing) return;
+
+            if (currentCredit <= 0) {
+                setLedMessage("NESSUN CREDITO", "text-amber-400");
+                playSound('error');
+                return;
+            }
+
+            const change = currentCredit;
+            walletBalance += change;
+            currentCredit = 0.00;
+            playSound('coin');
+
+            logActivity(`Restituito resto di €${change.toFixed(2)}.`);
+            setLedMessage(`RESTO: €${change.toFixed(2)}`, "text-cyan-400");
+            typedCode = "";
+            updateDisplay();
+
+            setTimeout(() => {
+                setLedMessage("INSERISCI CREDITO", "text-emerald-400");
+            }, 2500);
+        }
+
+        // --- REFRESH INTERFACCIA E DISPLAY ---
+        function updateDisplay() {
+            document.getElementById('led-credit').innerText = `€${currentCredit.toFixed(2)}`;
+            document.getElementById('led-code').innerText = typedCode ? typedCode.padStart(2, '0') : '--';
+            document.getElementById('wallet-balance').innerText = `€${walletBalance.toFixed(2)}`;
+        }
+
+        function updateUI() {
+            updateDisplay();
+            renderBag();
+        }
+
+        function setLedMessage(msg, colorClass = "text-emerald-400") {
+            const display = document.getElementById('led-display-msg');
+            display.className = `text-xs md:text-sm ${colorClass} min-h-[2.25rem] flex items-center justify-center font-bold tracking-wide transition-all leading-tight text-center px-1`;
+            display.innerText = msg;
+        }
+
+        function flashDisplayError() {
+            const box = document.getElementById('led-display-msg').parentElement;
+            box.classList.add('glow-led-red');
+            setTimeout(() => box.classList.remove('glow-led-red'), 600);
+        }
+
+        // --- RENDERING INVENTARIO BORSA ---
+        function renderBag() {
+            const bagContainer = document.getElementById('bag-container');
+            const bagCount = document.getElementById('bag-count');
+
+            bagCount.innerText = `${userBag.length} oggett${userBag.length === 1 ? 'o' : 'i'}`;
+
+            if (userBag.length === 0) {
+                bagContainer.innerHTML = `
+                    <div id="empty-bag-msg" class="h-24 flex flex-col items-center justify-center text-slate-500 text-xs italic">
+                        <i class="fa-solid fa-box-open text-2xl mb-1 text-slate-600"></i>
+                        Nessun prodotto acquistato
+                    </div>
+                `;
+                return;
+            }
+
+            bagContainer.innerHTML = '';
+            userBag.forEach((item, idx) => {
+                const el = document.createElement('div');
+                el.className = "flex items-center justify-between bg-slate-800/80 border border-slate-700/60 p-2 rounded-xl text-xs";
+                el.innerHTML = `
+                    <div class="flex items-center space-x-2">
+                        <span class="text-xl">${item.icon}</span>
+                        <div>
+                            <div class="font-semibold text-slate-200">${item.name}</div>
+                            <div class="text-[10px] text-slate-400">${item.category === 'snack' ? 'Snack' : 'Bibita'}</div>
+                        </div>
+                    </div>
+                    <button onclick="consumeItem(${idx})" class="text-[10px] bg-slate-700 hover:bg-emerald-600 text-slate-300 hover:text-white px-2 py-1 rounded-lg transition" title="Consuma">
+                        Consuma
+                    </button>
+                `;
+                bagContainer.appendChild(el);
+            });
+        }
+
+        function consumeItem(index) {
+            playSound('beep');
+            const item = userBag[index];
+            userBag.splice(index, 1);
+            logActivity(`Hai consumato ${item.name}.`);
+            renderBag();
+        }
+
+        // LOG ATTIVITA'
+        function logActivity(msg) {
+            const logBox = document.getElementById('activity-log');
+            const entry = document.createElement('div');
+            const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            entry.innerText = `> [${time}] ${msg}`;
+            logBox.prepend(entry);
+        }
+
+        // RESET MACCHINA
+        function resetMachine() {
+            products = JSON.parse(JSON.stringify(initialProducts));
+            currentCredit = 0.00;
+            walletBalance = 15.00;
+            typedCode = "";
+            userBag = [];
+            pendingItem = null;
+
+            const container = document.getElementById('ejected-item-container');
+            container.classList.remove('scale-100', 'opacity-100');
+            container.classList.add('scale-0', 'opacity-0');
+
+            renderProducts();
+            renderBag();
+            updateDisplay();
+            setLedMessage("RESET COMPLETATO", "text-emerald-400");
+            logActivity("Distributore ricaricato e reset effettuato.");
+
+            setTimeout(() => {
+                setLedMessage("INSERISCI CREDITO", "text-emerald-400");
+            }, 1500);
+        }
+    </script>
+</body>
+</html>
